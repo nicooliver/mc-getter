@@ -1,7 +1,11 @@
 'use strict';
 
+const express = require('express');
+const app = express();
+const fs = require('fs');
 const fetch = require('node-fetch');
 
+const filename = 'products.json';
 const productsUrl = 'https://www.mcdonalds.at/unsere-produkte';
 const rProducts = /href="(?<url>https:\/\/www.mcdonalds.at\/produkt\/[a-zA-Z0-9-]+)"/g;
 const rContent = /<b>Portion<\/b>(?<content>.+?)<b>per 100g<\/b>/;
@@ -22,12 +26,32 @@ const excludes = [
     'cappuccino',
 ];
 
-const main = async() => {
-    const urls = await getProductUrls();
-    const products = await getProducts(urls);
+app.get('/ranking', async(req, res) => {
+    if (fs.existsSync(filename)) {
+        const data = fs.readFileSync(filename, 'utf8');
+        res.end(data);
+    } else {
+        const urls = await getProductUrls();
+        const products = await getProducts(urls);
+        const json = JSON.stringify(products);
 
-    console.table(products);
-}
+        fs.writeFileSync(filename, json);
+        res.end(json);
+    }
+});
+
+const server = app.listen(8080, () => {
+    const host = server.address().address;
+    const port = server.address().port;
+    console.log('Mc-Getter listening at http://%s:%s', host, port);
+});
+
+// const main = async() => {
+//     const urls = await getProductUrls();
+//     const products = await getProducts(urls);
+
+//     console.table(products);
+// }
 
 const getProducts = async(urls) => {
     let products = [];
@@ -43,7 +67,7 @@ const getProducts = async(urls) => {
 
     products.sort((a, b) => a.mn - b.mn);
     return products;
-}
+};
 
 const getProductByUrl = async(url) => {
     const name = url.split('/').pop();
@@ -66,7 +90,7 @@ const getProductByUrl = async(url) => {
         console.error('Error at: ', url);
         return createEmptyProduct();
     }
-}
+};
 
 const createEmptyProduct = () => createProduct(null, null, null, null);
 
@@ -77,7 +101,7 @@ const createProduct = (name, kcal, protein, mn) => {
         protein: protein,
         mn: mn,
     };
-}
+};
 
 const getProductUrls = async() => {
     const html = await getHtmlByUrl(productsUrl);
@@ -90,11 +114,11 @@ const getProductUrls = async() => {
 
     console.log(`Found ${urls.length} products`);
     return urls;
-}
+};
 
 const getHtmlByUrl = async(url) => {
     const response = await fetch(url);
     return await response.text();
-}
+};
 
-main();
+// main();
